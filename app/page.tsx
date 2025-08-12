@@ -57,7 +57,7 @@ export default function Page(){
   }
 
   return (<main style={{maxWidth:980,margin:"40px auto",padding:16}}>
-    <h1>MVP – Simulação, Orçamento, Relatório, E-mail, Agendamento e Pix</h1>
+    <h1>🦷 MVP Odonto – Simulação de Facetas Completa</h1>
     <form onSubmit={simulate} encType="multipart/form-data" style={{ display:"grid", gap:12 }}>
       <input type="file" name="photo" accept="image/*" required />
       <input type="file" name="mask" accept="image/png" />
