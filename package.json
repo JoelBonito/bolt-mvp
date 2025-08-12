@@ -7,6 +7,11 @@
     "build": "vite build"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.55.0",
+    "archiver": "^7.0.1",
+    "dotenv": "^17.2.1",
+    "openai": "^5.12.2",
+    "pdf-lib": "^1.17.1",
     "vite": "^5.0.0"
   }
 }
