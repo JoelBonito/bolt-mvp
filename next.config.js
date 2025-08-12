@@ -1,1 +1,1 @@
-module.exports = { reactStrictMode: true, experimental: { runtime: 'edge' } }
+export default { reactStrictMode: true, experimental: { runtime: 'edge' } }
