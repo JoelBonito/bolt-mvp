@@ -102,72 +102,103 @@ async function generateSimulation() {
   
   try {
     showStatusMessage('Processando simulação com IA...', 'info');
-    await simulateAPICall(2000);
     
-    // Criar simulação visual mais realista usando canvas
+    // Aguardar um pouco para mostrar o loading
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Obter a imagem original
     const originalImg = document.getElementById('originalPreview');
+    
+    if (!originalImg || !originalImg.src) {
+      throw new Error('Imagem original não encontrada');
+    }
+    
+    console.log('Iniciando processamento da imagem...');
+    
+    // Criar canvas para processamento
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
-    // Garantir que a imagem está carregada
+    // Criar nova imagem para garantir que está carregada
     const img = new Image();
-    img.crossOrigin = 'anonymous';
     
-    await new Promise((resolve, reject) => {
-      img.onload = resolve;
-      img.onerror = reject;
+    const imageLoadPromise = new Promise((resolve, reject) => {
+      img.onload = () => {
+        console.log('Imagem carregada:', img.width, 'x', img.height);
+        resolve();
+      };
+      img.onerror = (error) => {
+        console.error('Erro ao carregar imagem:', error);
+        reject(new Error('Erro ao carregar imagem'));
+      };
       img.src = originalImg.src;
     });
     
-    // Configurar canvas com as mesmas dimensões
+    await imageLoadPromise;
+    
+    // Configurar canvas
     canvas.width = img.width;
     canvas.height = img.height;
+    
+    console.log('Canvas configurado:', canvas.width, 'x', canvas.height);
     
     // Desenhar imagem original
     ctx.drawImage(img, 0, 0);
     
-    // Aplicar efeito de clareamento mais sutil e realista
-    // Simular área dos dentes (região central da boca)
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height * 0.65; // Posição típica da boca
-    const width = canvas.width * 0.25;    // Largura proporcional dos dentes
-    const height = canvas.height * 0.08;  // Altura mais realista
+    console.log('Imagem desenhada no canvas');
     
-    // Criar gradiente radial para efeito mais natural
+    // Aplicar efeito de clareamento na região dos dentes
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height * 0.6;
+    const width = canvas.width * 0.2;
+    const height = canvas.height * 0.06;
+    
+    console.log('Aplicando efeito na região:', centerX, centerY, width, height);
+    
+    // Salvar estado do contexto
+    ctx.save();
+    
+    // Criar gradiente para o efeito de clareamento
     const gradient = ctx.createRadialGradient(
       centerX, centerY, 0,
-      centerX, centerY, width/2
+      centerX, centerY, width / 2
     );
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
-    gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.2)');
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+    gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.15)');
     gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
     
-    // Aplicar clareamento com blend mode mais suave
-    ctx.globalCompositeOperation = 'overlay';
+    // Aplicar o efeito
+    ctx.globalCompositeOperation = 'screen';
     ctx.fillStyle = gradient;
     
-    // Desenhar elipse para formato mais natural dos dentes
     ctx.beginPath();
-    ctx.ellipse(centerX, centerY, width/2, height/2, 0, 0, 2 * Math.PI);
+    ctx.ellipse(centerX, centerY, width / 2, height / 2, 0, 0, 2 * Math.PI);
     ctx.fill();
     
-    // Adicionar brilho sutil adicional
-    ctx.globalCompositeOperation = 'screen';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    // Adicionar um segundo efeito mais sutil
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.beginPath();
-    ctx.ellipse(centerX, centerY - height/4, width/3, height/3, 0, 0, 2 * Math.PI);
+    ctx.ellipse(centerX, centerY, width / 3, height / 3, 0, 0, 2 * Math.PI);
     ctx.fill();
     
-    // Converter para blob
-    canvas.toBlob(function(blob) {
-      const url = URL.createObjectURL(blob);
-      currentSimulation.simulationResult = url;
-      
-      // Mostrar resultado
-      const simulationPreview = document.getElementById('simulationPreview');
-      const placeholder = document.getElementById('simulationPlaceholder');
-      
-      simulationPreview.src = url;
+    // Restaurar estado do contexto
+    ctx.restore();
+    
+    console.log('Efeito aplicado, convertendo para blob...');
+    
+    // Converter canvas para data URL
+    const dataURL = canvas.toDataURL('image/png');
+    currentSimulation.simulationResult = dataURL;
+    
+    console.log('Simulação criada, atualizando interface...');
+    
+    // Mostrar resultado
+    const simulationPreview = document.getElementById('simulationPreview');
+    const placeholder = document.getElementById('simulationPlaceholder');
+    
+    if (simulationPreview && placeholder) {
+      simulationPreview.src = dataURL;
       simulationPreview.style.display = 'block';
       placeholder.style.display = 'none';
       
@@ -178,7 +209,10 @@ async function generateSimulation() {
       currentSimulation.simulationId = 'sim_' + Date.now();
       
       showStatusMessage('✨ Simulação concluída! Efeito de facetas aplicado com sucesso.', 'success');
-    }, 'image/png');
+      console.log('Interface atualizada com sucesso!');
+    } else {
+      throw new Error('Elementos da interface não encontrados');
+    }
     
   } catch (error) {
     console.error('Erro na simulação:', error);
