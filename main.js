@@ -6,12 +6,6 @@ let currentSimulation = {
   simulationId: null
 };
 
-// Configuração da API (simulada para demo)
-const API_CONFIG = {
-  supabaseUrl: 'https://demo.supabase.co',
-  openaiKey: 'demo-key'
-};
-
 // Inicialização
 document.addEventListener('DOMContentLoaded', function() {
   setupEventListeners();
@@ -107,48 +101,72 @@ async function generateSimulation() {
   document.getElementById('simulateBtn').disabled = true;
   
   try {
-    // Simular chamada para API de IA (OpenAI DALL-E)
-    await simulateAPICall(3000); // 3 segundos de simulação
+    // Simular processamento
+    await simulateAPICall(3000);
     
-    // Para demo, vamos usar a mesma imagem com um filtro visual
+    // Criar simulação visual usando canvas
+    const originalImg = document.getElementById('originalPreview');
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
+    
+    // Criar uma nova imagem para garantir que está carregada
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     
-    img.onload = function() {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      
-      // Desenhar imagem original
-      ctx.drawImage(img, 0, 0);
-      
-      // Aplicar um filtro simples para simular as facetas
-      ctx.globalCompositeOperation = 'overlay';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Converter para blob e mostrar resultado
-      canvas.toBlob(function(blob) {
-        const url = URL.createObjectURL(blob);
-        currentSimulation.simulationResult = url;
-        
-        document.getElementById('simulationPreview').src = url;
-        document.getElementById('simulationPreview').style.display = 'block';
-        document.getElementById('simulationPlaceholder').style.display = 'none';
-        
-        // Mostrar seção de resultados
-        document.getElementById('resultsSection').classList.add('show');
-        
-        // Gerar ID da simulação
-        currentSimulation.simulationId = 'sim_' + Date.now();
-        
-        showStatusMessage('Simulação gerada com sucesso!', 'success');
-      });
-    };
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = originalImg.src;
+    });
     
-    img.src = document.getElementById('originalPreview').src;
+    // Configurar canvas
+    canvas.width = img.width;
+    canvas.height = img.height;
+    
+    // Desenhar imagem original
+    ctx.drawImage(img, 0, 0);
+    
+    // Aplicar efeito de "facetas" - clarear a região dos dentes
+    ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    
+    // Simular área dos dentes (região central-inferior da imagem)
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height * 0.7;
+    const width = canvas.width * 0.3;
+    const height = canvas.height * 0.15;
+    
+    ctx.fillRect(centerX - width/2, centerY - height/2, width, height);
+    
+    // Adicionar brilho extra
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillRect(centerX - width/2, centerY - height/2, width, height);
+    
+    // Converter para blob
+    canvas.toBlob(function(blob) {
+      const url = URL.createObjectURL(blob);
+      currentSimulation.simulationResult = url;
+      
+      // Mostrar resultado
+      const simulationPreview = document.getElementById('simulationPreview');
+      const placeholder = document.getElementById('simulationPlaceholder');
+      
+      simulationPreview.src = url;
+      simulationPreview.style.display = 'block';
+      placeholder.style.display = 'none';
+      
+      // Mostrar seção de resultados
+      document.getElementById('resultsSection').classList.add('show');
+      
+      // Gerar ID da simulação
+      currentSimulation.simulationId = 'sim_' + Date.now();
+      
+      showStatusMessage('Simulação gerada com sucesso! Dentes clareados e com aparência de facetas.', 'success');
+    }, 'image/png');
     
   } catch (error) {
+    console.error('Erro na simulação:', error);
     showStatusMessage('Erro ao gerar simulação: ' + error.message, 'error');
   } finally {
     document.getElementById('loadingDiv').classList.remove('show');
@@ -167,26 +185,136 @@ async function generateBudget() {
   try {
     await simulateAPICall(1500);
     
-    // Simular geração de PDF
-    const budgetData = {
-      patientName: currentSimulation.patientName,
-      items: [
-        { label: 'Facetas em Resina Composta (4 dentes)', value: 2400.00 },
-        { label: 'Consulta e Planejamento', value: 200.00 },
-        { label: 'Moldagem Digital', value: 150.00 }
-      ],
-      subtotal: 2750.00,
-      discount: 275.00,
-      total: 2475.00
-    };
+    // Importar PDF-lib dinamicamente
+    const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
     
-    // Simular download do PDF
-    const pdfBlob = await generateMockPDF('orçamento', budgetData);
-    downloadFile(pdfBlob, `orcamento_${currentSimulation.patientName.replace(/\s+/g, '_')}.pdf`);
+    // Criar documento PDF
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([595.28, 841.89]); // A4
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
+    // Título
+    page.drawText('ORÇAMENTO - FACETAS DENTÁRIAS', {
+      x: 50,
+      y: 800,
+      size: 18,
+      font: boldFont,
+      color: rgb(0.2, 0.2, 0.2)
+    });
+    
+    // Dados do paciente
+    page.drawText(`Paciente: ${currentSimulation.patientName}`, {
+      x: 50,
+      y: 770,
+      size: 12,
+      font: font
+    });
+    
+    page.drawText(`Data: ${new Date().toLocaleDateString('pt-BR')}`, {
+      x: 50,
+      y: 750,
+      size: 12,
+      font: font
+    });
+    
+    // Linha separadora
+    page.drawLine({
+      start: { x: 50, y: 730 },
+      end: { x: 545, y: 730 },
+      thickness: 1,
+      color: rgb(0.8, 0.8, 0.8)
+    });
+    
+    // Itens do orçamento
+    let yPosition = 700;
+    
+    page.drawText('ITENS DO TRATAMENTO:', {
+      x: 50,
+      y: yPosition,
+      size: 14,
+      font: boldFont
+    });
+    
+    const items = [
+      { desc: 'Facetas em Resina Composta BL3 (4 dentes)', qty: 4, unit: 600.00, total: 2400.00 },
+      { desc: 'Consulta e Planejamento Digital', qty: 1, unit: 200.00, total: 200.00 },
+      { desc: 'Moldagem e Prova', qty: 1, unit: 150.00, total: 150.00 }
+    ];
+    
+    yPosition -= 30;
+    
+    // Cabeçalho da tabela
+    page.drawText('Descrição', { x: 50, y: yPosition, size: 10, font: boldFont });
+    page.drawText('Qtd', { x: 350, y: yPosition, size: 10, font: boldFont });
+    page.drawText('Unit.', { x: 400, y: yPosition, size: 10, font: boldFont });
+    page.drawText('Total', { x: 480, y: yPosition, size: 10, font: boldFont });
+    
+    yPosition -= 20;
+    
+    // Itens
+    items.forEach(item => {
+      page.drawText(item.desc, { x: 50, y: yPosition, size: 10, font: font });
+      page.drawText(item.qty.toString(), { x: 350, y: yPosition, size: 10, font: font });
+      page.drawText(`R$ ${item.unit.toFixed(2)}`, { x: 400, y: yPosition, size: 10, font: font });
+      page.drawText(`R$ ${item.total.toFixed(2)}`, { x: 480, y: yPosition, size: 10, font: font });
+      yPosition -= 20;
+    });
+    
+    // Totais
+    yPosition -= 20;
+    const subtotal = 2750.00;
+    const discount = 275.00;
+    const total = 2475.00;
+    
+    page.drawLine({
+      start: { x: 350, y: yPosition + 10 },
+      end: { x: 545, y: yPosition + 10 },
+      thickness: 1,
+      color: rgb(0.8, 0.8, 0.8)
+    });
+    
+    page.drawText('Subtotal:', { x: 400, y: yPosition, size: 12, font: boldFont });
+    page.drawText(`R$ ${subtotal.toFixed(2)}`, { x: 480, y: yPosition, size: 12, font: font });
+    
+    yPosition -= 20;
+    page.drawText('Desconto (10%):', { x: 400, y: yPosition, size: 12, font: font });
+    page.drawText(`- R$ ${discount.toFixed(2)}`, { x: 480, y: yPosition, size: 12, font: font });
+    
+    yPosition -= 25;
+    page.drawText('TOTAL:', { x: 400, y: yPosition, size: 14, font: boldFont });
+    page.drawText(`R$ ${total.toFixed(2)}`, { x: 480, y: yPosition, size: 14, font: boldFont });
+    
+    // Observações
+    yPosition -= 60;
+    page.drawText('OBSERVAÇÕES:', { x: 50, y: yPosition, size: 12, font: boldFont });
+    yPosition -= 20;
+    
+    const observations = [
+      '• Material: Resina composta BL3 de alta qualidade',
+      '• Técnica: Estratificada com bordas incisais translúcidas',
+      '• Garantia: 2 anos para o tratamento',
+      '• Forma de pagamento: À vista, cartão ou Pix',
+      '• Validade do orçamento: 30 dias'
+    ];
+    
+    observations.forEach(obs => {
+      page.drawText(obs, { x: 50, y: yPosition, size: 10, font: font });
+      yPosition -= 15;
+    });
+    
+    // Gerar PDF
+    const pdfBytes = await pdfDoc.save();
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    
+    // Download
+    const filename = `orcamento_${currentSimulation.patientName.replace(/\s+/g, '_')}.pdf`;
+    downloadFile(blob, filename);
     
     showStatusMessage('Orçamento gerado e baixado com sucesso!', 'success');
     
   } catch (error) {
+    console.error('Erro ao gerar orçamento:', error);
     showStatusMessage('Erro ao gerar orçamento: ' + error.message, 'error');
   }
 }
@@ -202,21 +330,178 @@ async function generateReport() {
   try {
     await simulateAPICall(1500);
     
-    const reportData = {
-      patientName: currentSimulation.patientName,
-      procedure: 'Facetas Dentárias em Resina Composta',
-      material: 'Resina BL3',
-      technique: 'Estratificada com bordas incisais translúcidas',
-      teeth: '12, 11, 21, 22',
-      observations: 'Preservação de gengiva, lábios e tecidos adjacentes'
-    };
+    // Importar PDF-lib dinamicamente
+    const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
     
-    const pdfBlob = await generateMockPDF('relatório', reportData);
-    downloadFile(pdfBlob, `relatorio_tecnico_${currentSimulation.patientName.replace(/\s+/g, '_')}.pdf`);
+    // Criar documento PDF
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([595.28, 841.89]); // A4
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
+    // Título
+    page.drawText('RELATÓRIO TÉCNICO - FACETAS DENTÁRIAS', {
+      x: 50,
+      y: 800,
+      size: 16,
+      font: boldFont,
+      color: rgb(0.2, 0.2, 0.2)
+    });
+    
+    // Dados do paciente
+    page.drawText(`Paciente: ${currentSimulation.patientName}`, {
+      x: 50,
+      y: 770,
+      size: 12,
+      font: font
+    });
+    
+    page.drawText(`Data: ${new Date().toLocaleDateString('pt-BR')}`, {
+      x: 50,
+      y: 750,
+      size: 12,
+      font: font
+    });
+    
+    page.drawText(`ID da Simulação: ${currentSimulation.simulationId}`, {
+      x: 50,
+      y: 730,
+      size: 12,
+      font: font
+    });
+    
+    // Linha separadora
+    page.drawLine({
+      start: { x: 50, y: 710 },
+      end: { x: 545, y: 710 },
+      thickness: 1,
+      color: rgb(0.8, 0.8, 0.8)
+    });
+    
+    let yPosition = 680;
+    
+    // Procedimento
+    page.drawText('PROCEDIMENTO REALIZADO:', {
+      x: 50,
+      y: yPosition,
+      size: 14,
+      font: boldFont
+    });
+    
+    yPosition -= 25;
+    page.drawText('Simulação digital de facetas dentárias em resina composta', {
+      x: 50,
+      y: yPosition,
+      size: 12,
+      font: font
+    });
+    
+    // Especificações técnicas
+    yPosition -= 40;
+    page.drawText('ESPECIFICAÇÕES TÉCNICAS:', {
+      x: 50,
+      y: yPosition,
+      size: 14,
+      font: boldFont
+    });
+    
+    const specs = [
+      'Material: Resina composta BL3',
+      'Técnica: Estratificada com bordas incisais translúcidas',
+      'Dentes tratados: 12, 11, 21, 22 (incisivos centrais e laterais superiores)',
+      'Espessura média: 0,5 a 1,0mm',
+      'Cor final: BL3 (Bleach 3 - tom clareado natural)',
+      'Acabamento: Polimento com discos e pastas diamantadas'
+    ];
+    
+    yPosition -= 25;
+    specs.forEach(spec => {
+      page.drawText(`• ${spec}`, {
+        x: 50,
+        y: yPosition,
+        size: 11,
+        font: font
+      });
+      yPosition -= 18;
+    });
+    
+    // Regiões preservadas
+    yPosition -= 20;
+    page.drawText('REGIÕES PRESERVADAS:', {
+      x: 50,
+      y: yPosition,
+      size: 14,
+      font: boldFont
+    });
+    
+    const preserved = [
+      'Gengiva e tecidos periodontais',
+      'Lábios e comissuras labiais',
+      'Estrutura facial e proporções',
+      'Expressão natural do sorriso',
+      'Oclusão e função mastigatória'
+    ];
+    
+    yPosition -= 25;
+    preserved.forEach(item => {
+      page.drawText(`• ${item}`, {
+        x: 50,
+        y: yPosition,
+        size: 11,
+        font: font
+      });
+      yPosition -= 18;
+    });
+    
+    // Observações clínicas
+    yPosition -= 20;
+    page.drawText('OBSERVAÇÕES CLÍNICAS:', {
+      x: 50,
+      y: yPosition,
+      size: 14,
+      font: boldFont
+    });
+    
+    const observations = [
+      'Simulação realizada com tecnologia de IA avançada',
+      'Resultado baseado em parâmetros clínicos reais',
+      'Preservação da naturalidade e harmonia facial',
+      'Técnica minimamente invasiva',
+      'Resultado final pode variar conforme condições clínicas'
+    ];
+    
+    yPosition -= 25;
+    observations.forEach(obs => {
+      page.drawText(`• ${obs}`, {
+        x: 50,
+        y: yPosition,
+        size: 11,
+        font: font
+      });
+      yPosition -= 18;
+    });
+    
+    // Rodapé
+    page.drawText('Relatório gerado automaticamente pelo sistema MVP Odonto', {
+      x: 50,
+      y: 50,
+      size: 8,
+      font: font,
+      color: rgb(0.5, 0.5, 0.5)
+    });
+    
+    // Gerar PDF
+    const pdfBytes = await pdfDoc.save();
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    
+    // Download
+    const filename = `relatorio_tecnico_${currentSimulation.patientName.replace(/\s+/g, '_')}.pdf`;
+    downloadFile(blob, filename);
     
     showStatusMessage('Relatório técnico gerado e baixado com sucesso!', 'success');
     
   } catch (error) {
+    console.error('Erro ao gerar relatório:', error);
     showStatusMessage('Erro ao gerar relatório: ' + error.message, 'error');
   }
 }
@@ -232,24 +517,58 @@ async function processPayment() {
   try {
     await simulateAPICall(2000);
     
-    // Simular geração de QR Code Pix
+    // Simular dados do Pix
     const pixData = {
       amount: 2475.00,
       description: `Facetas dentárias - ${currentSimulation.patientName}`,
-      qrCode: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+      pixKey: '00020126580014BR.GOV.BCB.PIX0136123e4567-e12b-12d1-a456-426614174000',
+      qrCode: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
     };
     
-    // Mostrar modal de pagamento (simulado)
-    alert(`Pagamento Pix gerado!\n\nValor: R$ ${pixData.amount.toFixed(2)}\nDescrição: ${pixData.description}\n\nEm um sistema real, aqui seria exibido o QR Code para pagamento.`);
+    // Criar modal de pagamento
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    `;
+    
+    modal.innerHTML = `
+      <div style="background: white; padding: 30px; border-radius: 15px; max-width: 400px; text-align: center;">
+        <h3 style="margin-bottom: 20px; color: #2c3e50;">Pagamento Pix</h3>
+        <p><strong>Valor:</strong> R$ ${pixData.amount.toFixed(2)}</p>
+        <p><strong>Descrição:</strong> ${pixData.description}</p>
+        <div style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+          <p style="font-size: 12px; color: #666;">Chave Pix (simulada):</p>
+          <code style="font-size: 10px; word-break: break-all;">${pixData.pixKey}</code>
+        </div>
+        <p style="color: #28a745; margin: 15px 0;">✅ QR Code gerado com sucesso!</p>
+        <p style="font-size: 12px; color: #666;">Em um sistema real, aqui apareceria o QR Code para pagamento.</p>
+        <button onclick="this.parentElement.parentElement.remove()" 
+                style="background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 5px; margin-top: 15px; cursor: pointer;">
+          Fechar
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
     
     showStatusMessage('QR Code Pix gerado com sucesso! Aguardando pagamento...', 'success');
     
-    // Simular confirmação de pagamento após alguns segundos
+    // Simular confirmação de pagamento
     setTimeout(() => {
-      showStatusMessage('Pagamento confirmado! Agendamento disponível.', 'success');
-    }, 5000);
+      showStatusMessage('✅ Pagamento confirmado! Agendamento liberado.', 'success');
+    }, 8000);
     
   } catch (error) {
+    console.error('Erro ao processar pagamento:', error);
     showStatusMessage('Erro ao processar pagamento: ' + error.message, 'error');
   }
 }
@@ -257,20 +576,6 @@ async function processPayment() {
 // Funções auxiliares
 async function simulateAPICall(delay) {
   return new Promise(resolve => setTimeout(resolve, delay));
-}
-
-async function generateMockPDF(type, data) {
-  // Simular geração de PDF
-  const content = `
-    ${type.toUpperCase()} - ${data.patientName}
-    
-    ${type === 'orçamento' ? 
-      `Itens:\n${data.items.map(item => `• ${item.label}: R$ ${item.value.toFixed(2)}`).join('\n')}\n\nTotal: R$ ${data.total.toFixed(2)}` :
-      `Procedimento: ${data.procedure}\nMaterial: ${data.material}\nTécnica: ${data.technique}\nDentes: ${data.teeth}\nObservações: ${data.observations}`
-    }
-  `;
-  
-  return new Blob([content], { type: 'application/pdf' });
 }
 
 function downloadFile(blob, filename) {
