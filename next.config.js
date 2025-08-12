@@ -1,1 +1,6 @@
-export default { reactStrictMode: true, experimental: { runtime: 'edge' } }
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+}
+
+module.exports = nextConfig
