@@ -1,0 +1,145 @@
+{
+  "name": "Facetas Dentárias - Simulação IA",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "facetas-simulation",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrair dados do webhook\nconst image = $input.first().binary.image;\nconst patientName = $input.first().json.patientName;\nconst prompt = $input.first().json.prompt;\n\n// Preparar dados para OpenAI\nreturn {\n  json: {\n    patientName,\n    prompt: `${prompt} Mantenha a pessoa exatamente igual, apenas melhore os dentes com facetas em resina composta BL3.`,\n    imageData: image.data,\n    mimeType: image.mimeType\n  }\n};"
+      },
+      "id": "process-input",
+      "name": "Process Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "edit",
+        "prompt": "={{ $json.prompt }}",
+        "image": {
+          "binaryPropertyName": "image"
+        },
+        "size": "1024x1024",
+        "n": 1
+      },
+      "id": "openai-dalle",
+      "name": "OpenAI DALL-E",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "simulacoes",
+        "fileName": "={{ 'simulation_' + $now.format('yyyy-MM-dd_HH-mm-ss') + '.png' }}",
+        "binaryData": true,
+        "binaryPropertyName": "data",
+        "options": {
+          "makePublic": true
+        }
+      },
+      "id": "supabase-storage",
+      "name": "Supabase Storage",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "simulations",
+        "columns": {
+          "patient_name": "={{ $('Process Input').first().json.patientName }}",
+          "before_url": "original_image_url",
+          "after_url": "={{ $json.publicUrl }}"
+        }
+      },
+      "id": "save-to-db",
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"simulatedImageUrl\": \"{{ $('Supabase Storage').first().json.publicUrl }}\",\n  \"simulationId\": \"{{ $('Save to Database').first().json.id }}\",\n  \"patientName\": \"{{ $('Process Input').first().json.patientName }}\"\n}"
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Process Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Input": {
+      "main": [
+        [
+          {
+            "node": "OpenAI DALL-E",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI DALL-E": {
+      "main": [
+        [
+          {
+            "node": "Supabase Storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Storage": {
+      "main": [
+        [
+          {
+            "node": "Save to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Database": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

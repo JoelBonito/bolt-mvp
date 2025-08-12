@@ -103,102 +103,43 @@ async function generateSimulation() {
   try {
     showStatusMessage('Processando simulação com IA...', 'info');
     
-    // Aguardar um pouco para mostrar o loading
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Converter imagem para base64
+    const formData = new FormData();
+    formData.append('image', currentSimulation.originalPhoto);
+    formData.append('patientName', currentSimulation.patientName);
+    formData.append('prompt', 'Aplique facetas dentárias em resina composta BL3. Mantenha bordas incisais translúcidas nos dentes 12,11,21,22. Preserve gengiva, lábios, expressão e proporções faciais.');
     
-    // Obter a imagem original
-    const originalImg = document.getElementById('originalPreview');
+    console.log('Enviando para N8N webhook...');
     
-    if (!originalImg || !originalImg.src) {
-      throw new Error('Imagem original não encontrada');
-    }
+    // URL do webhook N8N (você precisa configurar)
+    const N8N_WEBHOOK_URL = 'https://seu-n8n.com/webhook/facetas-simulation';
     
-    console.log('Iniciando processamento da imagem...');
-    
-    // Criar canvas para processamento
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    // Criar nova imagem para garantir que está carregada
-    const img = new Image();
-    
-    const imageLoadPromise = new Promise((resolve, reject) => {
-      img.onload = () => {
-        console.log('Imagem carregada:', img.width, 'x', img.height);
-        resolve();
-      };
-      img.onerror = (error) => {
-        console.error('Erro ao carregar imagem:', error);
-        reject(new Error('Erro ao carregar imagem'));
-      };
-      img.src = originalImg.src;
+    const response = await fetch(N8N_WEBHOOK_URL, {
+      method: 'POST',
+      body: formData
     });
     
-    await imageLoadPromise;
+    if (!response.ok) {
+      throw new Error(`Erro na API N8N: ${response.status} ${response.statusText}`);
+    }
     
-    // Configurar canvas
-    canvas.width = img.width;
-    canvas.height = img.height;
+    const result = await response.json();
+    console.log('Resposta do N8N:', result);
     
-    console.log('Canvas configurado:', canvas.width, 'x', canvas.height);
+    if (!result.simulatedImageUrl) {
+      throw new Error('N8N não retornou imagem simulada');
+    }
     
-    // Desenhar imagem original
-    ctx.drawImage(img, 0, 0);
+    currentSimulation.simulationResult = result.simulatedImageUrl;
     
-    console.log('Imagem desenhada no canvas');
-    
-    // Aplicar efeito de clareamento na região dos dentes
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height * 0.6;
-    const width = canvas.width * 0.2;
-    const height = canvas.height * 0.06;
-    
-    console.log('Aplicando efeito na região:', centerX, centerY, width, height);
-    
-    // Salvar estado do contexto
-    ctx.save();
-    
-    // Criar gradiente para o efeito de clareamento
-    const gradient = ctx.createRadialGradient(
-      centerX, centerY, 0,
-      centerX, centerY, width / 2
-    );
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
-    gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.15)');
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    
-    // Aplicar o efeito
-    ctx.globalCompositeOperation = 'screen';
-    ctx.fillStyle = gradient;
-    
-    ctx.beginPath();
-    ctx.ellipse(centerX, centerY, width / 2, height / 2, 0, 0, 2 * Math.PI);
-    ctx.fill();
-    
-    // Adicionar um segundo efeito mais sutil
-    ctx.globalCompositeOperation = 'overlay';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.beginPath();
-    ctx.ellipse(centerX, centerY, width / 3, height / 3, 0, 0, 2 * Math.PI);
-    ctx.fill();
-    
-    // Restaurar estado do contexto
-    ctx.restore();
-    
-    console.log('Efeito aplicado, convertendo para blob...');
-    
-    // Converter canvas para data URL
-    const dataURL = canvas.toDataURL('image/png');
-    currentSimulation.simulationResult = dataURL;
-    
-    console.log('Simulação criada, atualizando interface...');
+    console.log('Simulação recebida do N8N, atualizando interface...');
     
     // Mostrar resultado
     const simulationPreview = document.getElementById('simulationPreview');
     const placeholder = document.getElementById('simulationPlaceholder');
     
     if (simulationPreview && placeholder) {
-      simulationPreview.src = dataURL;
+      simulationPreview.src = currentSimulation.simulationResult;
       simulationPreview.style.display = 'block';
       placeholder.style.display = 'none';
       
@@ -208,7 +149,7 @@ async function generateSimulation() {
       // Gerar ID da simulação
       currentSimulation.simulationId = 'sim_' + Date.now();
       
-      showStatusMessage('✨ Simulação concluída! Efeito de facetas aplicado com sucesso.', 'success');
+      showStatusMessage('✨ Simulação concluída com IA real! Facetas aplicadas com sucesso.', 'success');
       console.log('Interface atualizada com sucesso!');
     } else {
       throw new Error('Elementos da interface não encontrados');
@@ -216,13 +157,103 @@ async function generateSimulation() {
     
   } catch (error) {
     console.error('Erro na simulação:', error);
-    showStatusMessage('Erro ao gerar simulação: ' + error.message, 'error');
+    
+    // Se N8N falhar, usar simulação local como fallback
+    if (error.message.includes('N8N') || error.message.includes('fetch')) {
+      showStatusMessage('N8N indisponível. Usando simulação local...', 'info');
+      await generateLocalSimulation();
+    } else {
+      showStatusMessage('Erro ao gerar simulação: ' + error.message, 'error');
+    }
   } finally {
     document.getElementById('loadingDiv').classList.remove('show');
     document.getElementById('simulateBtn').disabled = false;
   }
 }
 
+// Função de fallback para simulação local
+async function generateLocalSimulation() {
+  try {
+    // Obter a imagem original
+    const originalImg = document.getElementById('originalPreview');
+    
+    if (!originalImg || !originalImg.src) {
+      throw new Error('Imagem original não encontrada');
+    }
+    
+    // Criar canvas para processamento
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Criar nova imagem
+    const img = new Image();
+    
+    const imageLoadPromise = new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = originalImg.src;
+    });
+    
+    await imageLoadPromise;
+    
+    // Configurar canvas
+    canvas.width = img.width;
+    canvas.height = img.height;
+    
+    // Desenhar imagem original
+    ctx.drawImage(img, 0, 0);
+    
+    // Aplicar efeito sutil de clareamento
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height * 0.65;
+    const radiusX = canvas.width * 0.12;
+    const radiusY = canvas.height * 0.04;
+    
+    // Salvar estado
+    ctx.save();
+    
+    // Criar gradiente radial
+    const gradient = ctx.createRadialGradient(
+      centerX, centerY, 0,
+      centerX, centerY, radiusX
+    );
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
+    gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.1)');
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    
+    // Aplicar blend mode suave
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.fillStyle = gradient;
+    
+    // Desenhar elipse na região dos dentes
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Restaurar estado
+    ctx.restore();
+    
+    // Converter para data URL
+    const dataURL = canvas.toDataURL('image/png', 0.95);
+    currentSimulation.simulationResult = dataURL;
+    
+    // Mostrar resultado
+    const simulationPreview = document.getElementById('simulationPreview');
+    const placeholder = document.getElementById('simulationPlaceholder');
+    
+    simulationPreview.src = dataURL;
+    simulationPreview.style.display = 'block';
+    placeholder.style.display = 'none';
+    
+    document.getElementById('resultsSection').classList.add('show');
+    currentSimulation.simulationId = 'sim_' + Date.now();
+    
+    showStatusMessage('✨ Simulação local concluída! (Configure N8N para IA real)', 'success');
+    
+  } catch (error) {
+    throw new Error('Erro na simulação local: ' + error.message);
+  }
+}
 async function generateBudget() {
   if (!currentSimulation.simulationResult) {
     showStatusMessage('Gere uma simulação primeiro.', 'error');

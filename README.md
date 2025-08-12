@@ -1,5 +1,12 @@
 # Bolt Odonto MVP – Facetas
 
+## N8N Integration
+Para usar simulação real com IA:
+1. Configure N8N com o workflow em `n8n-workflow.json`
+2. Configure OpenAI API key no N8N
+3. Configure Supabase no N8N
+4. Atualize a URL do webhook em `main.js`
+
 ## Rodar local
 1) `npm i`
 2) crie `.env.local` (use `.env.local.example`)
