@@ -1,0 +1,25 @@
+{
+  "name": "bolt-smile-mvp-final",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "check:env": "node -r dotenv/config scripts/check-env.mjs dotenv_config_path=.env.local",
+    "pack": "node scripts/pack.mjs",
+    "bolt:export": "npm run build && npm run check:env && npm run pack"
+  },
+  "dependencies": {
+    "next": "14.2.4",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "openai": "^4.55.0",
+    "@supabase/supabase-js": "^2.45.4",
+    "pdf-lib": "^1.17.1",
+    "stripe": "^16.6.0",
+    "resend": "^3.4.0",
+    "archiver": "^7.0.1",
+    "dotenv": "^16.4.5"
+  }
+}
