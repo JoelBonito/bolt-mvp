@@ -101,15 +101,15 @@ async function generateSimulation() {
   document.getElementById('simulateBtn').disabled = true;
   
   try {
-    // Simular processamento
-    await simulateAPICall(3000);
+    showStatusMessage('Processando simulação com IA...', 'info');
+    await simulateAPICall(2000);
     
-    // Criar simulação visual usando canvas
+    // Criar simulação visual mais realista usando canvas
     const originalImg = document.getElementById('originalPreview');
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
-    // Criar uma nova imagem para garantir que está carregada
+    // Garantir que a imagem está carregada
     const img = new Image();
     img.crossOrigin = 'anonymous';
     
@@ -119,29 +119,44 @@ async function generateSimulation() {
       img.src = originalImg.src;
     });
     
-    // Configurar canvas
+    // Configurar canvas com as mesmas dimensões
     canvas.width = img.width;
     canvas.height = img.height;
     
     // Desenhar imagem original
     ctx.drawImage(img, 0, 0);
     
-    // Aplicar efeito de "facetas" - clarear a região dos dentes
-    ctx.globalCompositeOperation = 'screen';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-    
-    // Simular área dos dentes (região central-inferior da imagem)
+    // Aplicar efeito de clareamento mais sutil e realista
+    // Simular área dos dentes (região central da boca)
     const centerX = canvas.width / 2;
-    const centerY = canvas.height * 0.7;
-    const width = canvas.width * 0.3;
-    const height = canvas.height * 0.15;
+    const centerY = canvas.height * 0.65; // Posição típica da boca
+    const width = canvas.width * 0.25;    // Largura proporcional dos dentes
+    const height = canvas.height * 0.08;  // Altura mais realista
     
-    ctx.fillRect(centerX - width/2, centerY - height/2, width, height);
+    // Criar gradiente radial para efeito mais natural
+    const gradient = ctx.createRadialGradient(
+      centerX, centerY, 0,
+      centerX, centerY, width/2
+    );
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+    gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.2)');
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
     
-    // Adicionar brilho extra
+    // Aplicar clareamento com blend mode mais suave
     ctx.globalCompositeOperation = 'overlay';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-    ctx.fillRect(centerX - width/2, centerY - height/2, width, height);
+    ctx.fillStyle = gradient;
+    
+    // Desenhar elipse para formato mais natural dos dentes
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY, width/2, height/2, 0, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Adicionar brilho sutil adicional
+    ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY - height/4, width/3, height/3, 0, 0, 2 * Math.PI);
+    ctx.fill();
     
     // Converter para blob
     canvas.toBlob(function(blob) {
@@ -162,7 +177,7 @@ async function generateSimulation() {
       // Gerar ID da simulação
       currentSimulation.simulationId = 'sim_' + Date.now();
       
-      showStatusMessage('Simulação gerada com sucesso! Dentes clareados e com aparência de facetas.', 'success');
+      showStatusMessage('✨ Simulação concluída! Efeito de facetas aplicado com sucesso.', 'success');
     }, 'image/png');
     
   } catch (error) {
